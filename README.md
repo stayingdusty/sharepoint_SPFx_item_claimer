@@ -19,13 +19,15 @@ An SPFx **ListView Command Set** that adds a `Claim` button to a SharePoint work
 
 ## ⚙️ Configuration
 
-By default, the command expects the queue owner field to be a **Person or Group** column with the internal name:
+By default, the command now tries the most common SharePoint person-field internal names automatically, including:
 
 ```text
+AssignedTo
+Assigned_x0020_To
 Assigned_To
 ```
 
-If your field uses a different internal name, update `claimFieldInternalName` in `sharepoint/assets/elements.xml` and then repackage the solution.
+If your list uses a different **Person or Group** field, set `claimFieldInternalName` in `sharepoint/assets/elements.xml` to that internal name and then repackage the solution.
 
 ## 🔧 Build locally
 
