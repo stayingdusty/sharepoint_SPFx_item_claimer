@@ -72,27 +72,41 @@ npx -y node@20 ./node_modules/gulp/bin/gulp.js package-solution --ship
 
 #### Option A — Browser console ✅ verified working
 
-Open the target SharePoint site, press **F12**, open the **Console**, and run:
+Open the **target list view page** in SharePoint, press **F12**, open the **Console**, and run the script below.
+It uses the current list context dynamically, so no `listTitle` is required.
 
 ```js
 (async () => {
-  const listTitle = "test_list";
-  const fieldInternalName = "Assigned_To";
+  const listIdRaw = _spPageContextInfo.pageListId;
+  const fieldInternalName = "Assigned_To"; // change only if your target field differs
   const componentId = "fae2eec7-5401-4ea3-a4a8-9958dd98721f";
   const componentProperties = JSON.stringify({
-    claimFieldInternalName: "Assigned_To"
+    claimFieldInternalName: fieldInternalName
   });
 
-  const digestRes = await fetch("/sites/test_site/_api/contextinfo", {
+  if (!listIdRaw) {
+    throw new Error("No list context found. Open a list view page and try again.");
+  }
+
+  const listId = String(listIdRaw).replace(/[{}]/g, "");
+  const webRel = (_spPageContextInfo.webServerRelativeUrl || "").replace(/\/$/, "");
+  const apiBase = webRel + "/_api";
+
+  const digestRes = await fetch(apiBase + "/contextinfo", {
     method: "POST",
     headers: { Accept: "application/json;odata=nometadata" }
   });
-  const digestJson = await digestRes.json();
-  const digest = digestJson.FormDigestValue;
+  const digest = (await digestRes.json()).FormDigestValue;
 
-  const url = `/sites/test_site/_api/web/lists/getbytitle('${encodeURIComponent(listTitle)}')/fields/getbyinternalnameortitle('${fieldInternalName}')`;
+  const fieldUrl =
+    apiBase +
+    "/web/lists(guid'" +
+    listId +
+    "')/fields/getbyinternalnameortitle('" +
+    encodeURIComponent(fieldInternalName) +
+    "')";
 
-  const res = await fetch(url, {
+  const res = await fetch(fieldUrl, {
     method: "POST",
     headers: {
       Accept: "application/json;odata=nometadata",
@@ -107,11 +121,79 @@ Open the target SharePoint site, press **F12**, open the **Console**, and run:
     })
   });
 
-  if (res.ok) {
-    console.log("✅ Field customizer attached successfully.");
-  } else {
-    console.error("❌ Failed:", res.status, await res.text());
+  console.log(res.ok ? "✅ Field customizer attached successfully." : `❌ Failed ${res.status}: ${await res.text()}`);
+})();
+```
+
+> **Tip:** For many AMYN lists, keep one script and run it from each target list page. In most cases, you only need to confirm `fieldInternalName`.
+
+#### Optional — Unbind via browser console (current list)
+
+```js
+(async () => {
+  const listIdRaw = _spPageContextInfo.pageListId;
+  const fieldInternalName = "Assigned_To";
+
+  if (!listIdRaw) {
+    throw new Error("No list context found. Open a list view page and try again.");
   }
+
+  const listId = String(listIdRaw).replace(/[{}]/g, "");
+  const webRel = (_spPageContextInfo.webServerRelativeUrl || "").replace(/\/$/, "");
+  const apiBase = webRel + "/_api";
+
+  const digestRes = await fetch(apiBase + "/contextinfo", {
+    method: "POST",
+    headers: { Accept: "application/json;odata=nometadata" }
+  });
+  const digest = (await digestRes.json()).FormDigestValue;
+
+  const fieldUrl =
+    apiBase +
+    "/web/lists(guid'" +
+    listId +
+    "')/fields/getbyinternalnameortitle('" +
+    encodeURIComponent(fieldInternalName) +
+    "')";
+
+  const res = await fetch(fieldUrl, {
+    method: "POST",
+    headers: {
+      Accept: "application/json;odata=nometadata",
+      "Content-Type": "application/json;odata=nometadata",
+      "X-RequestDigest": digest,
+      "IF-MATCH": "*",
+      "X-HTTP-Method": "MERGE"
+    },
+    body: JSON.stringify({
+      ClientSideComponentId: null,
+      ClientSideComponentProperties: null
+    })
+  });
+
+  if (!res.ok) {
+    const retry = await fetch(fieldUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata",
+        "X-RequestDigest": digest,
+        "IF-MATCH": "*",
+        "X-HTTP-Method": "MERGE"
+      },
+      body: JSON.stringify({
+        ClientSideComponentId: "00000000-0000-0000-0000-000000000000",
+        ClientSideComponentProperties: null
+      })
+    });
+
+    if (!retry.ok) {
+      console.error(`❌ Failed ${retry.status}: ${await retry.text()}`);
+      return;
+    }
+  }
+
+  console.log("✅ Field customizer unbound.");
 })();
 ```
 
