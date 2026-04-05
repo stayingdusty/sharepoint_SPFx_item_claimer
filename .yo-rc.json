@@ -1,0 +1,16 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "version": "1.20.0",
+    "libraryName": "sharepoint-spfx-item-claimer",
+    "libraryId": "d724324d-3672-4b26-a56d-0845fe869274",
+    "environment": "spo",
+    "packageManager": "npm",
+    "solutionName": "sharepoint-spfx-item-claimer",
+    "solutionShortDescription": "Claims SharePoint work queue items safely using ETag-based optimistic concurrency.",
+    "isCreatingSolution": true,
+    "componentType": "extension",
+    "extensionType": "ListViewCommandSet",
+    "componentName": "ClaimQueueItem",
+    "componentDescription": "Adds a Claim action that prevents accidental double-claims."
+  }
+}

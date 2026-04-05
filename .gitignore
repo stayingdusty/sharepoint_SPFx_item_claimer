@@ -1,0 +1,8 @@
+node_modules/
+lib/
+dist/
+temp/
+release/
+coverage/
+*.log
+.DS_Store

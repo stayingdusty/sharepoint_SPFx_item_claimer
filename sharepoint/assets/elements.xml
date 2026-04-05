@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+  <CustomAction
+    Title="Claim Queue Item"
+    RegistrationType="List"
+    RegistrationId="100"
+    Location="ClientSideExtension.ListViewCommandSet.CommandBar"
+    ClientSideComponentId="fae2eec7-5401-4ea3-a4a8-9958dd98721f"
+    ClientSideComponentProperties="{&quot;claimFieldInternalName&quot;:&quot;Assigned_To&quot;}" />
+
+  <CustomAction
+    Title="Claim Queue Item"
+    RegistrationType="List"
+    RegistrationId="100"
+    Location="ClientSideExtension.ListViewCommandSet.ContextMenu"
+    ClientSideComponentId="fae2eec7-5401-4ea3-a4a8-9958dd98721f"
+    ClientSideComponentProperties="{&quot;claimFieldInternalName&quot;:&quot;Assigned_To&quot;}" />
+</Elements>
