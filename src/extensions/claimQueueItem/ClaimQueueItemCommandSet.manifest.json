@@ -1,18 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/spfx/command-set-extension-manifest.schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-extension-manifest.schema.json",
   "id": "fae2eec7-5401-4ea3-a4a8-9958dd98721f",
-  "alias": "ClaimQueueItemCommandSet",
+  "alias": "ClaimQueueItemFieldCustomizer",
   "componentType": "Extension",
-  "extensionType": "ListViewCommandSet",
+  "extensionType": "FieldCustomizer",
   "version": "*",
   "manifestVersion": 2,
   "requiresCustomScript": false,
-  "items": {
-    "CLAIM_ITEM": {
-      "title": {
-        "default": "Claim"
-      },
-      "type": "command"
-    }
+  "properties": {
+    "claimFieldInternalName": ""
   }
 }

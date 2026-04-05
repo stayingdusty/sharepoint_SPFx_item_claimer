@@ -1,5 +1,7 @@
 declare interface IClaimQueueItemCommandSetStrings {
   CommandLabel: string;
+  ClaimingLabel: string;
+  ClaimedLabel: string;
   SuccessMessage: string;
   AlreadyTakenMessage: string;
   UnexpectedErrorMessage: string;

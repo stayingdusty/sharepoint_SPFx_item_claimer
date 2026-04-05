@@ -1,19 +1,16 @@
 import { Log } from '@microsoft/sp-core-library';
 import { Dialog } from '@microsoft/sp-dialog';
 import {
-  BaseListViewCommandSet,
-  Command,
-  IListViewCommandSetExecuteEventParameters,
-  IListViewCommandSetListViewUpdatedParameters,
-  RowAccessor
+  BaseFieldCustomizer,
+  IFieldCustomizerCellEventParameters
 } from '@microsoft/sp-listview-extensibility';
 import { SPHttpClient, SPHttpClientResponse } from '@microsoft/sp-http';
 
 import * as strings from 'ClaimQueueItemCommandSetStrings';
 
-const LOG_SOURCE = 'ClaimQueueItemCommandSet';
+const LOG_SOURCE = 'ClaimQueueItemFieldCustomizer';
 
-export interface IClaimQueueItemCommandSetProperties {
+export interface IClaimQueueItemFieldCustomizerProperties {
   claimFieldInternalName?: string;
 }
 
@@ -24,104 +21,198 @@ interface IClaimableListItem {
   [key: string]: unknown;
 }
 
-interface IClaimFieldDefinition {
-  InternalName?: string;
-  Title?: string;
-  TypeAsString?: string;
-  Hidden?: boolean;
-  ReadOnlyField?: boolean;
-}
-
-interface IClaimFieldResponse {
-  value?: IClaimFieldDefinition[];
-  d?: {
-    results?: IClaimFieldDefinition[];
-  };
-}
-
 interface ISharePointItemResponse<T> {
   d?: T;
 }
 
-export default class ClaimQueueItemCommandSet extends BaseListViewCommandSet<IClaimQueueItemCommandSetProperties> {
+export default class ClaimQueueItemFieldCustomizer extends BaseFieldCustomizer<IClaimQueueItemFieldCustomizerProperties> {
+  private readonly _cellDisposers = new WeakMap<HTMLDivElement, () => void>();
+
   public onInit(): Promise<void> {
-    Log.info(LOG_SOURCE, 'Initialized ClaimQueueItemCommandSet');
+    Log.info(LOG_SOURCE, `Initialized for field "${this._getClaimFieldInternalName()}"`);
     return Promise.resolve();
   }
 
-  public onListViewUpdated(event: IListViewCommandSetListViewUpdatedParameters): void {
-    const claimCommand: Command | undefined = this.tryGetCommand('CLAIM_ITEM');
+  public onRenderCell(event: IFieldCustomizerCellEventParameters): void {
+    this._disposeCell(event.domElement);
+    event.domElement.innerHTML = '';
+    event.domElement.style.whiteSpace = 'normal';
 
-    if (claimCommand) {
-      claimCommand.visible = event.selectedRows?.length === 1;
+    const assignedDisplayValue = this._getAssignedDisplayValue(event.fieldValue);
+
+    if (assignedDisplayValue) {
+      this._renderTextValue(event.domElement, assignedDisplayValue);
+      return;
+    }
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = strings.CommandLabel;
+    button.setAttribute('aria-label', strings.CommandLabel);
+    button.style.padding = '2px 8px';
+    button.style.border = '1px solid #0078d4';
+    button.style.borderRadius = '4px';
+    button.style.background = '#ffffff';
+    button.style.color = '#0078d4';
+    button.style.cursor = 'pointer';
+    button.style.fontSize = '12px';
+    button.style.lineHeight = '18px';
+
+    const onClick = async (clickEvent: MouseEvent): Promise<void> => {
+      clickEvent.preventDefault();
+      clickEvent.stopPropagation();
+
+      button.disabled = true;
+      button.style.cursor = 'default';
+      button.textContent = strings.ClaimingLabel;
+
+      try {
+        const claimResult = await this._claimItem(this._getItemId(event));
+
+        if (claimResult.status === 'success') {
+          button.textContent = strings.ClaimedLabel;
+          await Dialog.alert(strings.SuccessMessage);
+          window.location.reload();
+          return;
+        }
+
+        await Dialog.alert(
+          claimResult.assignedUserLabel
+            ? `Already taken by ${claimResult.assignedUserLabel}.`
+            : strings.AlreadyTakenMessage
+        );
+        window.location.reload();
+      } catch (error) {
+        const message: string = error instanceof Error ? error.message : strings.UnexpectedErrorMessage;
+        button.disabled = false;
+        button.style.cursor = 'pointer';
+        button.textContent = strings.CommandLabel;
+        await Dialog.alert(`${strings.UnexpectedErrorMessage}\n\n${message}`);
+      }
+    };
+
+    button.addEventListener('click', onClick);
+    event.domElement.appendChild(button);
+
+    this._cellDisposers.set(event.domElement, () => {
+      button.removeEventListener('click', onClick);
+    });
+  }
+
+  public onDisposeCell(event: IFieldCustomizerCellEventParameters): void {
+    this._disposeCell(event.domElement);
+    super.onDisposeCell(event);
+  }
+
+  private _disposeCell(domElement: HTMLDivElement): void {
+    const disposer = this._cellDisposers.get(domElement);
+
+    if (disposer) {
+      disposer();
+      this._cellDisposers.delete(domElement);
     }
   }
 
-  public async onExecute(event: IListViewCommandSetExecuteEventParameters): Promise<void> {
-    switch (event.itemId) {
-      case 'CLAIM_ITEM':
-        await this._claimSelectedItem(event.selectedRows[0]);
-        break;
-      default:
-        throw new Error(`Unknown command: ${event.itemId}`);
-    }
+  private _renderTextValue(domElement: HTMLDivElement, value: string): void {
+    domElement.innerHTML = '';
+
+    const span = document.createElement('span');
+    span.textContent = value;
+    domElement.appendChild(span);
   }
 
-  private async _claimSelectedItem(selectedRow: RowAccessor): Promise<void> {
-    const itemId = this._getSelectedItemId(selectedRow);
+  private _getItemId(event: IFieldCustomizerCellEventParameters): number {
+    const rawValue: unknown = event.listItem.getValueByName('ID') || event.listItem.getValueByName('Id');
+    const itemId = Number(rawValue);
+
+    if (!itemId) {
+      throw new Error('Could not resolve the SharePoint list item ID.');
+    }
+
+    return itemId;
+  }
+
+  private _getClaimFieldInternalName(): string {
+    return this.context.field.internalName || this.properties.claimFieldInternalName?.trim() || 'Assigned_To';
+  }
+
+  private _getAssignedDisplayValue(fieldValue: unknown): string | undefined {
+    if (fieldValue === null || fieldValue === undefined) {
+      return undefined;
+    }
+
+    if (typeof fieldValue === 'string') {
+      const trimmedValue = fieldValue.trim();
+      return trimmedValue || undefined;
+    }
+
+    if (typeof fieldValue === 'number') {
+      return fieldValue > 0 ? String(fieldValue) : undefined;
+    }
+
+    if (Array.isArray(fieldValue)) {
+      const values: string[] = fieldValue
+        .map((entry) => this._getAssignedDisplayValue(entry))
+        .filter((value): value is string => Boolean(value));
+
+      return values.length > 0 ? values.join(', ') : undefined;
+    }
+
+    if (typeof fieldValue === 'object') {
+      const candidate = fieldValue as Record<string, unknown>;
+      const orderedKeys: string[] = [
+        'title',
+        'Title',
+        'lookupValue',
+        'LookupValue',
+        'displayName',
+        'name',
+        'EMail',
+        'email',
+        'value'
+      ];
+
+      for (const key of orderedKeys) {
+        const value = candidate[key];
+
+        if (typeof value === 'string' && value.trim()) {
+          return value.trim();
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  private async _claimItem(itemId: number): Promise<{ status: 'success' | 'alreadyTaken'; assignedUserLabel?: string }> {
     const currentUserId = Number(this.context.pageContext.legacyPageContext?.userId || 0);
+    const claimFieldInternalName = this._getClaimFieldInternalName();
 
     if (!currentUserId) {
       throw new Error('Could not resolve the current SharePoint user ID.');
     }
 
-    try {
-      const claimFieldInternalName: string = await this._resolveClaimFieldInternalName(itemId);
-      const itemResponse = await this._getJsonResponse(this._getReadItemUrl(itemId, claimFieldInternalName));
+    const itemResponse = await this._getJsonResponse(this._getReadItemUrl(itemId, claimFieldInternalName));
 
-      if (!itemResponse.ok) {
-        throw new Error(`Could not load the current item. Status ${itemResponse.status}.`);
-      }
-
-      const itemPayload = (await itemResponse.json()) as IClaimableListItem | ISharePointItemResponse<IClaimableListItem>;
-      const item: IClaimableListItem = this._unwrapSharePointItem(itemPayload);
-      const assignedUserLabel: string | undefined = this._getAssignedUserLabel(item, claimFieldInternalName);
-
-      if (this._hasAssignee(item, claimFieldInternalName)) {
-        await Dialog.alert(
-          assignedUserLabel
-            ? `Already taken by ${assignedUserLabel}.`
-            : strings.AlreadyTakenMessage
-        );
-        return;
-      }
-
-      const etag: string = itemResponse.headers.get('ETag') || item['@odata.etag'] || '*';
-      const claimResult = await this._updateClaimedItem(itemId, claimFieldInternalName, currentUserId, etag);
-
-      if (claimResult === 'success') {
-        await Dialog.alert(strings.SuccessMessage);
-        window.location.reload();
-        return;
-      }
-
-      await Dialog.alert(strings.AlreadyTakenMessage);
-      return;
-    } catch (error) {
-      const message: string = error instanceof Error ? error.message : strings.UnexpectedErrorMessage;
-      await Dialog.alert(`${strings.UnexpectedErrorMessage}\n\n${message}`);
-    }
-  }
-
-  private _getSelectedItemId(selectedRow: RowAccessor): number {
-    const rawValue: unknown = selectedRow.getValueByName('ID') || selectedRow.getValueByName('Id');
-    const itemId = Number(rawValue);
-
-    if (!itemId) {
-      throw new Error('A SharePoint list item must be selected before it can be claimed.');
+    if (!itemResponse.ok) {
+      throw new Error(`Could not load the current item. Status ${itemResponse.status}.`);
     }
 
-    return itemId;
+    const itemPayload = (await itemResponse.json()) as IClaimableListItem | ISharePointItemResponse<IClaimableListItem>;
+    const item: IClaimableListItem = this._unwrapSharePointItem(itemPayload);
+    const assignedUserLabel: string | undefined = this._getAssignedUserLabel(item, claimFieldInternalName);
+
+    if (this._hasAssignee(item, claimFieldInternalName)) {
+      return {
+        status: 'alreadyTaken',
+        assignedUserLabel
+      };
+    }
+
+    const etag: string = itemResponse.headers.get('ETag') || item['@odata.etag'] || '*';
+    const status = await this._updateClaimedItem(itemId, claimFieldInternalName, currentUserId, etag);
+
+    return { status };
   }
 
   private _getReadItemUrl(itemId: number, claimFieldInternalName: string): string {
@@ -141,76 +232,6 @@ export default class ClaimQueueItemCommandSet extends BaseListViewCommandSet<ICl
   private _getUpdateItemUrl(itemId: number): string {
     const listId: string = this._getListId();
     return `${this.context.pageContext.web.absoluteUrl}/_api/web/lists(guid'${listId}')/items(${itemId})`;
-  }
-
-  private async _resolveClaimFieldInternalName(itemId: number): Promise<string> {
-    const configuredFieldName: string | undefined = this.properties.claimFieldInternalName?.trim();
-
-    if (configuredFieldName) {
-      return configuredFieldName;
-    }
-
-    const preferredFieldNames: string[] = this._getPreferredClaimFieldNames();
-    const attemptedFieldNames: string[] = [];
-
-    for (const fieldName of preferredFieldNames) {
-      attemptedFieldNames.push(fieldName);
-
-      if (await this._canReadClaimField(itemId, fieldName)) {
-        return fieldName;
-      }
-    }
-
-    const availableFields = await this._getAvailableClaimFields();
-    const availableFieldNames: string[] = availableFields
-      .map((field) => field.InternalName)
-      .filter((value): value is string => Boolean(value));
-
-    let namedMatch: IClaimFieldDefinition | undefined;
-
-    for (const field of availableFields) {
-      const fieldName = field.InternalName;
-
-      if (fieldName && attemptedFieldNames.indexOf(fieldName) < 0) {
-        attemptedFieldNames.push(fieldName);
-
-        if (await this._canReadClaimField(itemId, fieldName)) {
-          return fieldName;
-        }
-      }
-
-      const searchText = `${field.InternalName || ''} ${field.Title || ''}`;
-
-      if (!namedMatch && /assigned|claim|owner/i.test(searchText)) {
-        namedMatch = field;
-      }
-    }
-
-    if (namedMatch && namedMatch.InternalName) {
-      return namedMatch.InternalName;
-    }
-
-    if (availableFieldNames.length === 1) {
-      return availableFieldNames[0];
-    }
-
-    if (availableFieldNames.length > 1) {
-      throw new Error(
-        `Could not resolve the claim field automatically. Set claimFieldInternalName to one of these Person or Group fields: ${availableFieldNames.join(', ')}.`
-      );
-    }
-
-    throw new Error(
-      `Could not find a writable Person or Group column to store claims. Tried: ${attemptedFieldNames.join(', ')}.`
-    );
-  }
-
-  private _getPreferredClaimFieldNames(): string[] {
-    return [
-      'Assigned_To',
-      'AssignedTo',
-      'Assigned_x0020_To'
-    ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
   }
 
   private async _updateClaimedItem(
@@ -279,38 +300,6 @@ export default class ClaimQueueItemCommandSet extends BaseListViewCommandSet<ICl
     return undefined;
   }
 
-  private async _canReadClaimField(itemId: number, claimFieldInternalName: string): Promise<boolean> {
-    const itemResponse = await this._getJsonResponse(this._getReadItemUrl(itemId, claimFieldInternalName));
-
-    if (itemResponse.ok) {
-      return true;
-    }
-
-    if (itemResponse.status === 400 || itemResponse.status === 404) {
-      return false;
-    }
-
-    throw new Error(`Could not validate the claim field "${claimFieldInternalName}". Status ${itemResponse.status}.`);
-  }
-
-  private async _getAvailableClaimFields(): Promise<IClaimFieldDefinition[]> {
-    const listId: string = this._getListId();
-    const fieldsResponse = await this._getJsonResponse(
-      `${this.context.pageContext.web.absoluteUrl}/_api/web/lists(guid'${listId}')/fields?$select=InternalName,Title,TypeAsString,Hidden,ReadOnlyField`
-    );
-
-    if (!fieldsResponse.ok) {
-      throw new Error(`Could not load the list fields. Status ${fieldsResponse.status}.`);
-    }
-
-    const payload = (await fieldsResponse.json()) as IClaimFieldResponse;
-    const fields: IClaimFieldDefinition[] = payload.value || payload.d?.results || [];
-
-    return fields.filter((field) => {
-      return Boolean(field.InternalName) && field.TypeAsString === 'User' && !field.Hidden && !field.ReadOnlyField;
-    });
-  }
-
   private async _getJsonResponse(url: string): Promise<SPHttpClientResponse> {
     const acceptValues: string[] = [
       'application/json;odata.metadata=none',
@@ -353,7 +342,7 @@ export default class ClaimQueueItemCommandSet extends BaseListViewCommandSet<ICl
     const listId: string | undefined = this.context.pageContext.list?.id?.toString();
 
     if (!listId) {
-      throw new Error('This command can only run from a SharePoint list view.');
+      throw new Error('This field customizer can only run from a SharePoint list view.');
     }
 
     return listId;

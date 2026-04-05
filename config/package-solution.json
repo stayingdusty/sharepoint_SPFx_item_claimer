@@ -3,7 +3,7 @@
   "solution": {
     "name": "sharepoint-spfx-item-claimer-client-side-solution",
     "id": "fa98cfde-3b9d-4d66-a5b8-ea1df1c1f6c4",
-    "version": "1.0.0.0",
+    "version": "1.0.2.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": false,
     "isDomainIsolated": false,
@@ -16,10 +16,10 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "Claim SharePoint work queue items safely using optimistic concurrency."
+        "default": "Add an inline Claim button to SharePoint work queue items with safe concurrency."
       },
       "longDescription": {
-        "default": "Adds a Claim action to a SharePoint list and uses the current ETag to prevent double-claiming or stealing items during UI lag."
+        "default": "Renders an inline Claim button inside the Assigned_To column and uses the current ETag to prevent double-claiming during UI lag."
       },
       "screenshotPaths": [],
       "videoUrl": "",
@@ -30,9 +30,9 @@
     "features": [
       {
         "title": "Queue item claimer",
-        "description": "Adds a Claim command to generic SharePoint lists.",
+        "description": "Adds an inline Claim button to the Assigned_To field in generic SharePoint lists.",
         "id": "c4b9b4f8-b738-4800-8da6-18f9db34e7d5",
-        "version": "1.0.0.0",
+        "version": "1.0.2.0",
         "assets": {
           "elementManifests": [
             "elements.xml"

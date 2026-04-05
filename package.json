@@ -1,8 +1,8 @@
 {
   "name": "sharepoint-spfx-item-claimer",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
-  "description": "SPFx ListView Command Set that safely claims SharePoint queue items using ETags.",
+  "description": "SPFx Field Customizer that adds an inline Claim button to SharePoint queue items using ETags.",
   "engines": {
     "node": ">=18.17.1 <21"
   },
