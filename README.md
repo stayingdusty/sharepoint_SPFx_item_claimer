@@ -15,7 +15,6 @@ An SPFx **Field Customizer** that adds an inline `Claim` button to the `Assigned
 
 - `src/extensions/claimQueueItem/ClaimQueueItemCommandSet.ts` — inline field rendering and REST/ETag claim logic
 - `src/extensions/claimQueueItem/ClaimQueueItemCommandSet.manifest.json` — SPFx field customizer manifest
-- `sharepoint/assets/elements.xml` — SharePoint packaging/provisioning assets
 - `scripts/attach-field-customizer.ps1` — optional PowerShell helper to bind the field customizer to an existing field
 
 ## ⚙️ Configuration
@@ -34,6 +33,8 @@ For existing SharePoint columns, the field customizer must be associated to the 
 - `ClientSideComponentProperties`
 
 Without that step, the inline button will not render even if the app package is installed.
+
+This solution intentionally does **not** package a SharePoint Feature `elements.xml`. SharePoint Online rejects the attempted `CustomAction` registration for `ClientSideExtension.ListViewFieldCustomizer`; the supported deployment path is to install the app package and then bind the field customizer to the target field.
 
 ## 🔧 Build locally
 

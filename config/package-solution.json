@@ -5,7 +5,7 @@
     "id": "fa98cfde-3b9d-4d66-a5b8-ea1df1c1f6c4",
     "version": "1.0.2.0",
     "includeClientSideAssets": true,
-    "skipFeatureDeployment": false,
+    "skipFeatureDeployment": true,
     "isDomainIsolated": false,
     "developer": {
       "name": "",
@@ -26,20 +26,7 @@
       "categories": [
         "Productivity"
       ]
-    },
-    "features": [
-      {
-        "title": "Queue item claimer",
-        "description": "Adds an inline Claim button to the Assigned_To field in generic SharePoint lists.",
-        "id": "c4b9b4f8-b738-4800-8da6-18f9db34e7d5",
-        "version": "1.0.2.0",
-        "assets": {
-          "elementManifests": [
-            "elements.xml"
-          ]
-        }
-      }
-    ]
+    }
   },
   "paths": {
     "zippedPackage": "solution/sharepoint-spfx-item-claimer.sppkg"

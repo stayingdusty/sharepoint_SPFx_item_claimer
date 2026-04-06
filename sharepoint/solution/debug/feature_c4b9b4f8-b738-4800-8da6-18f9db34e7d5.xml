@@ -1,1 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?><Feature xmlns="http://schemas.microsoft.com/sharepoint/" Title="Queue item claimer" Description="Adds an inline Claim button to the Assigned_To field in generic SharePoint lists." Id="c4b9b4f8-b738-4800-8da6-18f9db34e7d5" Version="1.0.2.0" Scope="Web" Hidden="FALSE"></Feature>
