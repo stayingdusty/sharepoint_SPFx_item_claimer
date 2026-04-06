@@ -1,6 +1,6 @@
 {
   "name": "sharepoint-spfx-item-claimer",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "private": true,
   "description": "SPFx Field Customizer that adds an inline Claim button to SharePoint queue items using ETags.",
   "engines": {
@@ -9,7 +9,9 @@
   "scripts": {
     "build": "gulp bundle",
     "clean": "gulp clean",
-    "package": "gulp bundle --ship && gulp package-solution --ship",
+    "version:bump": "node ./scripts/bump-version.cjs",
+    "package:ship": "npm run version:bump && npx -y node@20 ./node_modules/gulp/bin/gulp.js bundle --ship && npx -y node@20 ./node_modules/gulp/bin/gulp.js package-solution --ship",
+    "package": "npm run package:ship",
     "serve": "gulp serve",
     "test": "gulp test"
   },

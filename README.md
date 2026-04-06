@@ -15,7 +15,6 @@ An SPFx **Field Customizer** that adds an inline `Claim` button to the `Assigned
 
 - `src/extensions/claimQueueItem/ClaimQueueItemCommandSet.ts` — inline field rendering and REST/ETag claim logic
 - `src/extensions/claimQueueItem/ClaimQueueItemCommandSet.manifest.json` — SPFx field customizer manifest
-- `scripts/attach-field-customizer.ps1` — optional PowerShell helper to bind the field customizer to an existing field
 
 ## ⚙️ Configuration
 
@@ -41,9 +40,10 @@ This solution intentionally does **not** package a SharePoint Feature `elements.
 This SPFx 1.20 project must be built with a supported Node runtime. In this dev container, the verified working command is:
 
 ```bash
-npx -y node@20 ./node_modules/gulp/bin/gulp.js bundle --ship && \
-npx -y node@20 ./node_modules/gulp/bin/gulp.js package-solution --ship
+npm run package:ship
 ```
+
+`npm run package:ship` automatically increments the patch version on each run before creating the `.sppkg`.
 
 If you're using `nvm` locally, Node `18.x` or `20.x` in the supported SPFx range also works.
 
@@ -58,8 +58,7 @@ sharepoint/solution/sharepoint-spfx-item-claimer.sppkg
 ### 1) Build the package
 
 ```bash
-npx -y node@20 ./node_modules/gulp/bin/gulp.js bundle --ship && \
-npx -y node@20 ./node_modules/gulp/bin/gulp.js package-solution --ship
+npm run package:ship
 ```
 
 ### 2) Upload and deploy the app
@@ -196,15 +195,6 @@ It uses the current list context dynamically, so no `listTitle` is required.
 
   console.log("✅ Field customizer unbound.");
 })();
-```
-
-#### Option B — PowerShell helper
-
-```powershell
-pwsh ./scripts/attach-field-customizer.ps1 \
-  -SiteUrl "https://forgeweldapps.sharepoint.com/sites/test_site" \
-  -ListTitle "test_list" \
-  -FieldInternalName "Assigned_To"
 ```
 
 ### 4) Refresh and test

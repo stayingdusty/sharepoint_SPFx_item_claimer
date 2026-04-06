@@ -3,7 +3,7 @@
   "solution": {
     "name": "sharepoint-spfx-item-claimer-client-side-solution",
     "id": "fa98cfde-3b9d-4d66-a5b8-ea1df1c1f6c4",
-    "version": "1.0.2.0",
+    "version": "1.0.4.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,
