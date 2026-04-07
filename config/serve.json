@@ -5,9 +5,12 @@
   "serveConfigurations": {
     "default": {
       "pageUrl": "https://contoso.sharepoint.com/sites/workqueue/Lists/Queue/AllItems.aspx",
-      "customActions": {
-        "fae2eec7-5401-4ea3-a4a8-9958dd98721f": {
-          "location": "ClientSideExtension.ListViewCommandSet.CommandBar"
+      "fieldCustomizers": {
+        "Assigned_To": {
+          "id": "fae2eec7-5401-4ea3-a4a8-9958dd98721f",
+          "properties": {
+            "claimFieldInternalName": "Assigned_To"
+          }
         }
       }
     }
